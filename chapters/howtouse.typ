@@ -29,10 +29,12 @@ The main folder contains three folders detailed here:
   - `abbreviations.typ` --- List of abbreviations. If the list goes over one page, continue it as a new list on the next page.
   - `abstract.typ` --- Abstract. Follow directions in the file.
   - `acknowledgments.typ` --- Acknowledgments. Follow directions in the file.
-  - `declaration.typ` --- Declaration of Original and Sole Authorship. Only modify the last item. This page needs to be signed once printed.
+  - `declaration.typ` --- Declaration of Original and Sole Authorship. Only modify the last item and the signature. See @sec-declaration.
+  - `declaration_ai_tools.typ` --- Declaration on the Use of AI Tools. State which generative AI tools you used and for what. Delete the file and its `#include` line if you used none.
   - `dedication.typ` --- Dedication (optional). Should only be a very few lines.
   - `glossary.typ` --- Glossary (optional). If the list goes over one page, continue it as a new list on the next page.
   - `nomenclature.typ` --- Nomenclature (optional). If the list goes over one page, continue it as a new list on the next page.
+  - `publications.typ` --- List of Publications and Presentations (optional). Each entry can carry a `#contrib[...]` line stating your own contribution, and conference entries can be tagged with `#entry_type("Oral")` or `#entry_type("Poster")`. All spacing knobs are defined at the top of the file.
 
 == main.typ file
 
@@ -45,10 +47,20 @@ This is #strong[the main file], the only one that needs to be compiled to build 
   cosupervisor: "C. O'Supervisor",
   submission_date: "August 2025",
   mode: "draft",
+  colored_refs: false,
   doc,
 )
 ```
 When you submit a temporary version to the graduate school, compile with `"submission"` parameter.
+
+`colored_refs` controls the colour of citations and cross-references. It is `false` (black) by default, which is what you want for the printed and submitted versions. Set it to `true` while writing to get blue, clickable citations and cross-references, which makes it much easier to navigate a long draft on screen.
+
+== Declaration page and signature <sec-declaration>
+
+The declaration page pulls the title, author, and submission date straight from `thesis(...)`, so you never retype them. Two things do need editing:
+
+- The last confirmation item lists every publication or preprint that overlaps with the thesis, together with a `Contribution:` line for each. If none of your work has appeared elsewhere, delete the nested list and shorten the sentence. If a co-author's work appears in the thesis, obtain a signed release from every affected co-author, attach it to both submitted versions as a separate document, and state here that authorization has been obtained.
+- The signature. The template ships a placeholder at `images/signature.svg`. Replace it with a scan of your own signature --- any format Typst reads (SVG, PNG, JPG, PDF) works --- and adjust `height` in `preamble/declaration.typ` if needed. Note that the whole block has to fit under the publication list, so a taller signature may push it onto a second page.
 
 === Page size, Margins, Spacing, Justification, and Pagination
 
@@ -111,13 +123,49 @@ References should be listed in bibliography.bib. Paste them in bibtex format. Pl
 ```
 There are various citation styles, such as APA, Chicago, and IEEE. This template uses APA. If you want to change the citation style, change the `set bibliography(style: "apa", title: "Bibliography")` style parameter in `./oist_thesis.typ`.
 
-#heading(level: 3, "Appendices") // you can also write here "=== Appendices"  
+#heading(level: 3, "Appendices") // you can also write here "=== Appendices"
 
 Structures the style for the appendices and builds them. The appendices are numbered with letters but are structured like regular chapters.
+
+Wrap the body of every appendix file in `#appendix("<letter>")[...]`. The letter drives all the numbering inside the block: sections become `A.1`, `A.1.1`, and figures and tables become `Figure A.1`, `Table A.1`. Every counter restarts for each appendix, so Appendix B starts again at `B.1`. All figures and tables of an appendix must sit inside the block for this to apply.
+
+```typ
+#import "../oist_thesis.typ": appendix, custom_figure
+
+#appendix("A")[
+#heading(level: 1, numbering: none, "Appendix A: First Appendix") <appendix-a>
+
+== A Section Inside an Appendix
+...
+]
+```
 
 === Published Articles
 
 This last section add the PDF files of your previously published articles (or about to be published) to the thesis. You should only include PDF files provided by the publishing journal (*including preprint*). This is strictly for the examiners' convenience in the temporary bound thesis, as for copyright reasons these files may not be published in the final version of the thesis.
+
+Use `#embed_pdf("path/to/article.pdf", 15)` to drop all 15 pages of an article into the thesis full-bleed, with no margins or header. Precede it with `#published_article_cover(...)` to generate a cover page carrying the article number, its title, the full citation rendered from `bibliography.bib`, a pointer to the corresponding chapter, and the publisher's copyright notice.
+
+```typ
+#published_article_cover(
+  number: "1",
+  title: "Title of the published article",
+  bib_key: <Lee98>,
+  related_chapter: <ch-2>,
+  license: "Reproduced with permission from ...",
+)
+#embed_pdf("published_pdf/study1.pdf", 15)
+```
+
+PDFs are large, so keep them out of git (the shipped `.gitignore` already excludes `*.pdf`) and guard the calls with a build flag in `main.typ` so the thesis still compiles on a machine that does not have them:
+
+```typ
+#let embed_published_pdfs = false
+...
+#if embed_published_pdfs {
+  embed_pdf("published_pdf/study1.pdf", 15)
+}
+```
 
 === Differences between draft and submission modes
 
