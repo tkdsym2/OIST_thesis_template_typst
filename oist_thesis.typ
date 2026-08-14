@@ -1,4 +1,10 @@
-#import "@preview/grayness:0.1.0": transparent-image
+// NOTE: The title-page watermark used to go through @preview/grayness
+// (transparent-image) with alpha: 100%, which means "fully opaque" — i.e. no
+// transparency was actually applied. The dependency was dropped in favor of a
+// plain image() call (grayness 0.1.0 relied on image.decode, removed in Typst
+// 0.15). If you ever want a translucent watermark, use
+// @preview/grayness:0.7.0's image-transparency(path, alpha: ..%) or bake the
+// alpha into the image file.
 
 // Document mode flag
 #let final-mode = state("final-mode", false)
@@ -14,48 +20,38 @@
 // State to store current chapter title
 #let current-chapter-title = state("current-chapter-title", "")
 
-// Page header function - ENHANCED VERSION WITH CHAPTER NAME AND UNDERLINE
+// Counter that's nonzero while a heading is being rendered.
+// Used by main.typ's indent-targets show rule to skip injecting the
+// "invisible paragraph" trailer for blocks created by heading rendering,
+// so the first paragraph after a heading stays unindented.
+#let in-heading = state("oist-in-heading", 0)
+
+// Page header. Long chapter titles wrap to multiple lines: the title and the
+// page number bottom-align in a grid so the page number sits on the last line
+// of the title, and the underline is drawn beneath the whole block so it never
+// crosses the wrapped text. Chapter-start pages show only the page number.
 #let page_header = context {
   let current_page = counter(page).get().first()
   let chapter_start = is-chapter-start.get()
   let chapter_title = current-chapter-title.get()
-  
-  // if it's the start of a chapter, show only page number centered at top right
+
   if chapter_start {
-    place(
-      top + right,
-      dy: 2.5cm,
-      dx: 0cm,
-      text(size: 10pt, weight: "regular", font: "Times New Roman")[#current_page]
-    )
+    align(right)[
+      #text(size: 12pt, weight: "regular", font: "Times New Roman")[#current_page]
+    ]
   } else {
-    // if not chapter start, show chapter title on the left and page number on the right
-    if chapter_title != "" {
-      place(
-        top + left,
-        dy: 2.5cm,
-        dx: 0cm,
-        text(size: 10pt, weight: "regular", font: "Times New Roman")[#chapter_title]
-      )
-    }
-    
-    place(
-      top + right,
-      dy: 2.5cm,
-      dx: 0cm,
-      text(size: 10pt, weight: "regular", font: "Times New Roman")[#current_page]
+    set text(size: 12pt, weight: "regular", font: "Times New Roman")
+    grid(
+      columns: (1fr, auto),
+      column-gutter: 1em,
+      align: (left + bottom, right + bottom),
+      chapter_title,
+      [#current_page],
     )
-    
-    place(
-      top,
-      dy: 2.8cm,
-      line(
-        length: 100%,
-        stroke: 0.5pt + black
-      )
-    )
+    v(0.2em)
+    line(length: 100%, stroke: 0.5pt + black)
   }
-  
+
   // Reset the chapter start flag after displaying header
   is-chapter-start.update(false)
 }
@@ -63,19 +59,23 @@
 // Page footer function for preamble pages - NEW FUNCTION
 #let preamble_footer = context {
   let current_page = counter(page).display("i")  // Roman numerals for preamble
-  // fixed position at bottom center
+  // Place inside the bottom margin (1cm from page bottom). Using a larger
+  // |dy| (e.g. 2.5cm) puts the page number flush with the content-area
+  // boundary, so a dense outline whose last entry reaches the bottom of the
+  // content area will visually collide with it.
   place(
     bottom + center,
-    dy: -2.5cm,
-    text(size: 10pt, weight: "regular", font: "Times New Roman")[#current_page]
+    dy: -1cm,
+    text(size: 12pt, weight: "regular", font: "Times New Roman")[#current_page]
   )
 }
 
 // Title page function
 #let title_page(title, author, supervisor, cosupervisor, submission_date) = {
-  // Set Times New Roman font for title page (instead of CMU Serif)
-  set text(font: "CMU Serif", size: 12pt)
-  
+  // Title page font: New Computer Modern (successor of CMU Serif; bundled
+  // with the Typst CLI, so it needs no local font installation)
+  set text(font: "New Computer Modern", size: 12pt, hyphenate: false)
+
   set page(
     header: none,
     footer: none,
@@ -89,10 +89,9 @@
             #move(
               dx: -8.8cm, // Adjusted offset for better centering
               dy: 5.5cm,
-              transparent-image(
-                read("images/symbol.jpg", encoding: none), 
+              image(
+                "images/symbol.jpg",
                 width: 100%, // Full page width
-                alpha: 100% // More transparent for watermark effect
               )
             )
           ]
@@ -124,14 +123,14 @@
     // Degree text (large = 14.4pt in LaTeX)
     block(spacing: 0pt)[
       #set par(leading: 0.65em)  // Tight line spacing
-      #text(size: 14.4pt, font: "CMU Serif", "Thesis submitted for the degree")
+      #text(size: 14.4pt, font: "New Computer Modern", "Thesis submitted for the degree")
     ]
     v(1.0cm)
     
     // Degree type (Large = 17.28pt in LaTeX)
     block(spacing: 0pt)[
       #set par(leading: 0.65em)  // Tight line spacing
-      #text(size: 17.28pt, font: "CMU Serif", "Doctor of Philosophy")
+      #text(size: 17.28pt, font: "New Computer Modern", "Doctor of Philosophy")
     ]
     v(1.0cm)
     
@@ -142,10 +141,12 @@
     ]
     v(0.5cm)
     
-    // Title (huge = 24.88pt in LaTeX)
+    // Title (huge = 24.88pt in LaTeX).
+    // A long title may push the author/supervisor blocks off the page —
+    // drop this to ~22pt if yours wraps to three or more lines.
     block(spacing: 0pt)[
       #set par(leading: 0.65em)  // Tight line spacing
-      #text(size: 24.88pt, font: "CMU Serif", title)
+      #text(size: 24.88pt, font: "New Computer Modern", title)
     ]
     v(0.5cm)
     
@@ -160,9 +161,9 @@
     align(right)[
       #block(spacing: 0pt)[
         #set par(leading: 0.65em)  // Tight line spacing
-        #text(size: 12pt, font: "CMU Serif", "by")
+        #text(size: 12pt, font: "New Computer Modern", "by")
         #v(0.2cm)
-        #text(size: 14.4pt, weight: "bold", font: "CMU Serif", author)
+        #text(size: 14.4pt, weight: "bold", font: "New Computer Modern", author)
       ]
     ]
 
@@ -172,19 +173,19 @@
     align(right)[
       #block(spacing: 0pt)[
         #set par(leading: 0.65em)  // Tight line spacing
-        #text(size: 14.4pt, font: "CMU Serif", "Supervisor: ")
-        #text(size: 14.4pt, weight: "bold", font: "CMU Serif", supervisor)
+        #text(size: 14.4pt, font: "New Computer Modern", "Supervisor: ")
+        #text(size: 14.4pt, weight: "bold", font: "New Computer Modern", supervisor)
 
         // Co-supervisor if exists
         #if cosupervisor != none {
           v(-0.5cm) // No extra space between supervisor and co-supervisor
           linebreak()
-          text(size: 14.4pt, font: "CMU Serif", "Co-Supervisor: ")
-          text(size: 14.4pt, weight: "bold", font: "CMU Serif", cosupervisor)
+          text(size: 14.4pt, font: "New Computer Modern", "Co-Supervisor: ")
+          text(size: 14.4pt, weight: "bold", font: "New Computer Modern", cosupervisor)
         }
         
         #v(1cm)
-        #text(size: 12pt, font: "CMU Serif", submission_date)
+        #text(size: 12pt, font: "New Computer Modern", submission_date)
       ]
     ]
   })
@@ -192,22 +193,68 @@
   pagebreak()
 }
 
-// Appendix function (simplified - no automatic chapter numbering)
-#let appendix(body) = {
-  // Remove automatic chapter numbering for appendices
-  set heading(numbering: none)
+// Appendix wrapper. Inside `body`, level-2+ headings are numbered as
+// `<letter>.N`, `<letter>.N.M`, ... (e.g. A.1, A.1.1) instead of using the
+// document-wide chapter counter. The level-1 heading of an appendix carries
+// `numbering: none` explicitly, so it is unaffected.
+//
+// Figures and tables inside `body` are numbered as `<letter>.N` (e.g. A.1,
+// A.2, B.1) instead of `<chapter>.N`. The image and table figure counters
+// are reset to zero so each appendix starts at 1. Putting `set figure(...)`
+// here (rather than reading a state inside the global numbering function)
+// is what makes cross-references render correctly: the closure captures
+// `letter` at figure-creation time, so `@<label>` from anywhere in the
+// document still resolves to the figure's appendix letter.
+//
+// All figures/tables of an appendix MUST be placed inside this `body` block
+// for the set rule and counter resets to apply.
+//
+// Sub-counters are reset to zero at the start of each appendix because
+// level-1 headings with `numbering: none` do not auto-reset them in Typst —
+// without this, sections in Appendix B would continue numbering from where
+// the last main chapter (or earlier appendix) left off.
+//
+// Usage:
+//   #appendix("A")[
+//     #heading(level: 1, numbering: none, "Appendix A: Title") <appendix-a>
+//     ...
+//   ]
+#let appendix(letter, body) = {
+  set heading(numbering: (..nums) => {
+    let n = nums.pos()
+    if n.len() <= 1 { none }
+    else { letter + "." + n.slice(1).map(str).join(".") }
+  })
+  set figure(numbering: it => letter + "." + str(it))
+  counter(heading).update((..levels) => (levels.pos().at(0, default: 0),))
+  counter(figure.where(kind: image)).update(0)
+  counter(figure.where(kind: table)).update(0)
   body
 }
 
-// Main thesis function  
-#let thesis(title: "", author: "", supervisor: "", cosupervisor: none, submission_date: "", mode: "draft", body) = {
+// Main thesis function
+#let thesis(
+  title: "",
+  author: "",
+  supervisor: "",
+  cosupervisor: none,
+  submission_date: "",
+  mode: "draft",
+  colored_refs: false,
+  body
+  ) = {
   // Set document metadata
   set document(title: title, author: author)
   final-mode.update(mode == "submission")
   thesis-title.update(title)
   thesis-author.update(author)
   thesis-submission-date.update(submission_date)
-  
+
+  // Cross-references and citations are black by default (print-friendly).
+  // Set `colored_refs: true` in main.typ for a clickable, blue-linked
+  // screen-reading copy.
+  let ref_color = if colored_refs { rgb("#0066cc") } else { black }
+
   // Configure page settings - FIXED: Remove footer from main content pages
   if mode == "submission" {
     set page(
@@ -300,7 +347,7 @@
       ]
     } else {
       // For figures and other content: use default positioning (caption below) but left-aligned
-      block(above: 1.5em, below: 1.5em)[
+      block(above: 2.0em, below: 2.0em)[
         #it.body
         #block(width: 100%)[
           #set align(left)
@@ -338,10 +385,27 @@
   
   // Configure cite style for APA format
   show cite: it => {
-    set text(weight: "regular")
+    set text(weight: "regular", fill: ref_color)
     it
   }
-  
+
+  // Heading references render as "Chapter N" for level-1 and "Section N.M"
+  // for level-2+ headings. (Setting `supplement` inside `set heading(...)`
+  // does not work because `it.level` / `it.depth` are not resolvable at
+  // that point; rewriting the ref display here is the reliable hook.)
+  show ref: it => {
+    set text(fill: ref_color)
+    let target = it.element
+    if target != none and target.func() == heading and target.numbering != none {
+      let nums = counter(heading).at(target.location())
+      let supp = if target.level == 1 { "Chapter" } else { "Section" }
+      let num_str = numbering(target.numbering, ..nums)
+      link(target.location())[#supp #num_str]
+    } else {
+      it
+    }
+  }
+
   // Configure quote styling for better visual clarity
   show quote: it => {
     set par(first-line-indent: 0em)
@@ -355,9 +419,11 @@
     )[#it]
   }
   
-  // Style for code blocks and raw text (technical font)
+  // Style for code blocks and raw text (technical font).
+  // "DejaVu Sans Mono" ships with the Typst CLI, so it needs no local font
+  // installation; the old "CMU Typewriter Text" had to be installed by hand.
   show raw: it => {
-    set text(font: "CMU Typewriter Text", size: 12pt)
+    set text(font: "DejaVu Sans Mono", size: 10pt)
     if it.block {
       block(
         width: 100%,
@@ -372,18 +438,38 @@
     }
   }
   
-  // Style for links (Times New Roman handled separately for footnotes below)
+  // Style for links: external URLs are underlined; internal cross-references
+  // (heading/figure/table refs and label-based links) are colored only.
   show link: it => {
-    set text(font: "Times New Roman")
+    set text(font: "Times New Roman", fill: ref_color)
+    if type(it.dest) == str {
+      underline(it)
+    } else {
+      it
+    }
+  }
+
+  // Hayagriva's APA renderer emits the "https://doi.org/" prefix of a DOI as
+  // plain text adjacent to the linked DOI body, so `show link` only underlines
+  // the body and the prefix is left unstyled. This regex rule catches any
+  // URL-like substring that appears in plain text and underlines it with the
+  // same color, restoring a single continuous underline across the full URL.
+  show regex("https?://[a-zA-Z0-9./_\-~:?#\[\]@!$&'()*+,;=%]+"): it => {
+    set text(font: "Times New Roman", fill: ref_color)
     underline(it)
   }
 
-  // Ensure footnote text (including links) stays in Times New Roman
+  // Ensure footnote text (including links) stays in Times New Roman.
+  // Same rule as the global link rule: underline only external URLs.
   show footnote.entry: entry => context {
     set text(font: "Times New Roman")
     show link: link => context {
-      set text(font: "Times New Roman")
-      underline(link)
+      set text(font: "Times New Roman", fill: ref_color)
+      if type(link.dest) == str {
+        underline(link)
+      } else {
+        link
+      }
     }
     entry
   }
@@ -395,10 +481,10 @@
       set par(
         leading: 0.65em,
         spacing: 0.65em,
-        first-line-indent: 1.5em,
+        first-line-indent: (amount: 1.5em, all: false),
         justify: true
       )
-      
+
       // Apply list spacing for submission mode
       show list: it => {
         v(0.8em)
@@ -416,42 +502,56 @@
       show heading.where(level: 1): it => {
         // Mark this as a chapter start page
         is-chapter-start.update(true)
-        
+
         // Update current chapter title - just the title, no "Chapter X:" prefix
         current-chapter-title.update(it.body)
-        
+
+        // Wrap heading rendering with `in-heading` >= 1 so main.typ's
+        // indent-targets rule skips the invisible-paragraph injection for
+        // blocks emitted here. Without this, the first paragraph after the
+        // chapter title would be preceded by an injected paragraph and
+        // therefore inherit the 1.5em first-line indent.
+        in-heading.update(n => n + 1)
         pagebreak(weak: true)
         v(2em)
         block[
           #set par(first-line-indent: 0em)
           #if it.numbering != none [
-            #set text(size: 24.88pt, weight: "bold", font: "Times New Roman")
+            #set text(size: 29.86pt, weight: "bold", font: "Times New Roman")
             Chapter #counter(heading).display(it.numbering)
             #linebreak()
             #v(8mm)
           ]
           #set text(size: 29.86pt, weight: "bold", font: "Times New Roman")
+          // Match main-text leading (0.65em × 12pt = 7.8pt absolute) so wrapped
+          // chapter titles do not get the larger em-resolved leading at 29.86pt.
+          #set par(leading: 7.8pt)
           #it.body
         ]
         v(13mm)
+        in-heading.update(n => n - 1)
       }
-      
+
       // Style section headings (level 2) for submission mode
       show heading.where(level: 2): it => {
+        in-heading.update(n => n + 1)
         v(0.65em)
         set text(size: 17.28pt, weight: "bold", font: "Times New Roman")
         it
         v(0.65em)
+        in-heading.update(n => n - 1)
       }
-      
+
       // Style subsection headings (level 3) for submission mode
       show heading.where(level: 3): it => {
+        in-heading.update(n => n + 1)
         v(0.65em)
         set text(size: 14.4pt, weight: "bold", font: "Times New Roman")
         it
         v(0.65em)
+        in-heading.update(n => n - 1)
       }
-      
+
       // Configure outline spacing for submission mode
       show outline: it => {
         set text(size: 12pt, font: "Times New Roman")
@@ -466,10 +566,10 @@
       set par(
         leading: 1.2em,
         spacing: 1.8em,
-        first-line-indent: 1.5em,
+        first-line-indent: (amount: 1.5em, all: false),
         justify: true
       )
-      
+
       // Apply increased spacing to all blocks
       set block(spacing: 1.8em)
       
@@ -484,10 +584,12 @@
       show heading.where(level: 1): it => {
         // Mark this as a chapter start page
         is-chapter-start.update(true)
-        
+
         // Update current chapter title - just the title, no "Chapter X:" prefix
         current-chapter-title.update(it.body)
-        
+
+        // See submission-mode level-1 rule for the rationale.
+        in-heading.update(n => n + 1)
         pagebreak(weak: true)
         v(2em)
         set par(first-line-indent: 0em)
@@ -502,27 +604,35 @@
             #v(-2.0em)
           ]
           #set text(size: 24.88pt, weight: "bold", font: "Times New Roman")
+          // Match main-text leading (1.2em × 12pt = 14.4pt absolute) so wrapped
+          // chapter titles do not get the larger em-resolved leading at 24.88pt.
+          #set par(leading: 14.4pt)
           #align(left)[#it.body]
         ]
         v(1.8em)
+        in-heading.update(n => n - 1)
       }
-      
+
       // Style section headings (level 2) for draft mode
       show heading.where(level: 2): it => {
+        in-heading.update(n => n + 1)
         v(1.8em)
         set text(size: 17.28pt, weight: "bold", font: "Times New Roman")
         it
         v(1.8em)
+        in-heading.update(n => n - 1)
       }
-      
+
       // Style subsection headings (level 3) for draft mode
       show heading.where(level: 3): it => {
+        in-heading.update(n => n + 1)
         v(1.8em)
         set text(size: 14.4pt, weight: "bold", font: "Times New Roman")
         it
         v(1.8em)
+        in-heading.update(n => n - 1)
       }
-      
+
       // Configure outline spacing for draft mode
       show outline: it => {
         set text(size: 12pt, font: "Times New Roman")
@@ -544,7 +654,22 @@ show outline.entry.where(level: 1): it => {
     []
   }
   let gap = if mode == "submission" { 0pt } else { 8mm }
-  block(below: gap)[#intro_spacer #text(weight: "bold", font: "Times New Roman", it)]
+  // For figure/table entries (LoF/LoT), constrain the body width with a 2-column
+  // grid so long captions wrap before reaching the page-number column on the right.
+  if it.element != none and it.element.func() == figure {
+    block(below: gap, width: 100%)[
+      #set text(weight: "bold", font: "Times New Roman")
+      #grid(
+        columns: (1fr, auto),
+        column-gutter: 0.6em,
+        align: (left + bottom, right + bottom),
+        [#it.prefix()#h(0.6em)#it.body()#h(0.4em)#box(width: 1fr, it.fill)],
+        [#it.page()],
+      )
+    ]
+  } else {
+    block(below: gap)[#intro_spacer #text(weight: "bold", font: "Times New Roman", it)]
+  }
 }
 
 // Figure & table entries in outlines (LoF/LoT): show short title instead of full caption
@@ -670,3 +795,106 @@ show outline.entry: it => {
 }
 
 // list_of_figures / list_of_tables moved above to use outline
+
+// -----------------------------------------------
+// Citation helpers
+// -----------------------------------------------
+
+// Narrative/prose citation: "Smith (2020) showed that ..."
+#let prosecite(key) = cite(key, form: "prose")
+
+// Full bibliography-style rendering of one entry, inline. Handy on the
+// declaration page and on published-article cover pages.
+#let fullcite(key) = cite(key, form: "full")
+
+// -----------------------------------------------
+// Published Article cover page + PDF embedding
+// -----------------------------------------------
+
+// Cover page that precedes each embedded published-article PDF.
+// `bib_key` is a label (e.g. <Smith2024-ab>) used to render the full
+// citation via `fullcite`. `related_chapter` is also a label (e.g. <study1>).
+#let published_article_cover(
+  number: "",
+  title: "",
+  bib_key: none,
+  license: "",
+  related_chapter: none,
+) = {
+  // Mirror the level-1 heading show rule: update state BEFORE pagebreak
+  // so the new page's page_header reads the chapter-start flag.
+  is-chapter-start.update(true)
+  current-chapter-title.update("Published Article PDFs")
+  pagebreak(weak: true)
+
+  v(3em)
+
+  block[
+    #set par(first-line-indent: 0em)
+    #set text(size: 14pt, font: "Times New Roman")
+    Published Article #number
+  ]
+
+  v(0.5em)
+  line(length: 100%, stroke: 1pt)
+  v(2em)
+
+  block[
+    #set par(first-line-indent: 0em, justify: false)
+    #set text(size: 20pt, weight: "bold", font: "Times New Roman")
+    #title
+  ]
+
+  v(1.5em)
+
+  if bib_key != none {
+    block[
+      #set par(first-line-indent: 0em, justify: true)
+      #set text(size: 12pt, font: "Times New Roman")
+      *Citation.* #fullcite(bib_key)
+    ]
+  }
+
+  if related_chapter != none {
+    v(0.5em)
+    block[
+      #set par(first-line-indent: 0em)
+      #set text(size: 12pt, font: "Times New Roman")
+      *Corresponding chapter in this thesis.* #ref(related_chapter)
+    ]
+  }
+
+  v(2em)
+
+  if license != "" {
+    block(
+      width: 100%,
+      inset: 1em,
+      fill: luma(245),
+      stroke: 0.5pt + gray,
+      radius: 4pt,
+    )[
+      #set par(first-line-indent: 0em, justify: true)
+      #set text(size: 10pt, font: "Times New Roman")
+      *Copyright notice.* #license
+    ]
+  }
+}
+
+// Embeds every page of `path` as a full-bleed page (no margins, no header).
+// Page numbering of the host document is preserved across the embed.
+// Useful for published-article PDFs and scanned co-author authorization forms.
+//
+// Bumps `oist-in-heading` for the duration of the loop so main.typ's
+// indent-targets show rule does not inject an invisible trailing
+// paragraph after each `page(...)` call. Without this, the trailer
+// overflows onto a fresh page and produces alternating blank pages.
+#let embed_pdf(path, count) = {
+  in-heading.update(n => n + 1)
+  for i in range(1, count + 1) {
+    page(margin: 0pt, header: none, footer: none)[
+      #image(path, page: i, width: 100%, height: 100%, fit: "contain")
+    ]
+  }
+  in-heading.update(n => n - 1)
+}
