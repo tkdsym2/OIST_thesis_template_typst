@@ -51,9 +51,11 @@
 
     // Replace images/signature.svg with a scan of your own signature.
     // Any image format Typst supports works here (SVG, PNG, JPG, PDF).
+    // The typed name follows "Signature:", with the signature image beside it;
     // `baseline` pushes the image below the text baseline so it sits on the
-    // "Signature:" line; raise `height` only if the page still has room, since
-    // this whole block has to fit under the publication list above.
-    Signature: #h(0.5em)#box(image("../images/signature.svg", height: 1.4cm), baseline: 55%)
+    // line. In the single-spaced submission copy there is room to put the image
+    // on its own line instead (`#linebreak()` before the box, height ~2.5cm);
+    // in the 1.5-spaced review copy that extra line spills onto a second page.
+    Signature: #author #h(1em)#box(image("../images/signature.svg", height: 1.4cm), baseline: 55%)
   ]
 }

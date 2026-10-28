@@ -377,9 +377,12 @@
   // Configure bibliography style  
   set bibliography(style: "apa", title: "Bibliography")
   
-  // Add spacing between bibliography entries
+  // Reference-list layout: left-aligned (ragged right, hence no hyphenation),
+  // extra space between entries. Everything else -- punctuation, author
+  // format, italics, volume(issue), hanging indent, DOI placement -- is left
+  // to Typst's built-in APA CSL style; do not rebuild entries with show rules.
   show bibliography: it => {
-    set par(spacing: 1.5em)
+    set par(justify: false, spacing: 1.5em, first-line-indent: 0em)
     it
   }
   
