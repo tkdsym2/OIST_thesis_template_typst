@@ -78,3 +78,9 @@ This template works smoothly with the [Tinymist Typst](https://marketplace.visua
 
 The reason I use typst is that I can work while viewing multiple chapter pages and bib files, and see the compilation results immediately.
 ![Editor screenshot](editor_screenshot.png)
+
+## License
+
+This template is released under the [MIT No Attribution (MIT-0)](LICENSE) license: you may use, copy, modify, and distribute it, including for your own thesis, without keeping the copyright notice or crediting the author.
+
+The license does not cover the OIST logo and symbol (`images/symbol.jpg`, `images/chap3/emblem.jpg`, `images/chap3/symbol.jpg`). They belong to the Okinawa Institute of Science and Technology and are included only so the template renders as an OIST thesis; use them according to OIST's own rules.
